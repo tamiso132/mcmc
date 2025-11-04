@@ -1,0 +1,30 @@
+[package]
+name = "rust_render_graph"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ash = "0.38.0" 
+ash-window = "0.13.0"
+# --- This is the correct bootstrap library ---
+ash-bootstrap = "0.1.3"
+
+# Used by ash-bootstrap for surface creation
+raw-window-handle = "0.6"
+
+# --- Winit replaces GLFW ---
+winit = "0.29"
+
+bitflags = "2.5"
+
+# Now uses the "ash" feature
+vk-mem = "0.5.0"
+
+# Utilities
+log = "0.4"
+env_logger = "0.11"
+thiserror = "1.0" # For error handling
+bitvec = "1.0"
+anyhow = "1.0" # For error handling, as used in the example
+shader-slang = "0.1.0"
+
