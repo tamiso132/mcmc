@@ -28,3 +28,7 @@ bitvec = "1.0"
 anyhow = "1.0" # For error handling, as used in the example
 shader-slang = "0.1.0"
 
+
+[build-dependencies]
+cmake = "0.1.54"
+

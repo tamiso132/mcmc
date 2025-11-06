@@ -1,7 +1,7 @@
 //! Translation of queue.hpp/cpp
 //! Uses 'ash' types.
 
-use crate::util::vk_check;
+use super::util::vk_check;
 use ash::{vk, Device};
 use bitflags::bitflags;
 use bitvec::prelude::*;

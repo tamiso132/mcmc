@@ -8,7 +8,7 @@
 //! the underlying bitflag values using the `::from_raw` constructor,
 //! which is allowed in const contexts.
 
-use crate::util::vk_check;
+use super::util::vk_check;
 use ash::{Device, vk};
 use std::sync::Arc;
 
@@ -33,13 +33,11 @@ struct DescriptorMeta {
 
 // FIX: We must combine flags using their raw value (via ::from_raw)
 // because the `|` operator is not available in const context.
-const SHADER_STAGES: vk::ShaderStageFlags = unsafe {
-    vk::ShaderStageFlags::from_raw(
-        vk::ShaderStageFlags::COMPUTE.as_raw()
-            | vk::ShaderStageFlags::FRAGMENT.as_raw()
-            | vk::ShaderStageFlags::VERTEX.as_raw(),
-    )
-};
+const SHADER_STAGES: vk::ShaderStageFlags = vk::ShaderStageFlags::from_raw(
+    vk::ShaderStageFlags::COMPUTE.as_raw()
+        | vk::ShaderStageFlags::FRAGMENT.as_raw()
+        | vk::ShaderStageFlags::VERTEX.as_raw(),
+);
 
 const METAS: [DescriptorMeta; 4] = [
     DescriptorMeta {

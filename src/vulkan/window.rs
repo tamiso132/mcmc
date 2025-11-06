@@ -14,7 +14,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use crate::library::VkLibrary; // Import VkLibrary from the library module
+use super::library::VkLibrary; // Import VkLibrary from the library module
 
 // Define a trait for the user's application logic
 // This is the 'user stuff' that gets injected.

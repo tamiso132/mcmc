@@ -33,9 +33,9 @@ macro_rules! vk_check {
             // If the call is Err(err), log it and panic.
             Err(err) => {
                 // 'err' is the raw vk::Result from ash or vk-mem-rs.
-                log::error!("Vulkan error at {}:{}: {}", file!(), line!(), err);
+                log::error!("Vulkan error at {}:{}: {:?}", file!(), line!(), err);
                 // Panic just like the C++ abort().
-                panic!("Vulkan error: {}", err);
+                panic!("Vulkan error: {:?}", err);
             }
         }
     };

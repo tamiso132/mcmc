@@ -4,11 +4,11 @@
 //! and `winit`, replacing the `ash-bootstrap` crate.
 //! This is a custom "bootstrap" process.
 
-use crate::bindless::BindlessDescriptors;
-use crate::queue::{QueueCapability, QueueHandle, QueueInfo, QueueManager}; // Import QueueManager
-use crate::resource::{ResourceHandle, ResourceManager};
-use crate::util::{helper, vk_check};
-use crate::window::{WinitWindow, WinitAppRunner, App}; // Import WinitWindow, WinitAppRunner, and App
+use super::bindless::BindlessDescriptors;
+use super::queue::{QueueCapability, QueueHandle, QueueInfo, QueueManager}; // Import QueueManager
+use super::resource::{ResourceHandle, ResourceManager};
+use super::util::{helper, vk_check};
+use super::window::{WinitWindow, WinitAppRunner, App}; // Import WinitWindow, WinitAppRunner, and App
 use ash::{ext, khr, vk}; 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use std::ffi::{CStr, CString};

@@ -5,8 +5,8 @@
 //! The functions now return the RwLockReadGuard directly, allowing
 //! the caller to index into the contained Vec<T> safely.
 
-use crate::bindless::BindlessDescriptors;
-use crate::util::{TBufferInfo, TImageInfo, vk_check};
+use super::bindless::BindlessDescriptors;
+use super::util::{TBufferInfo, TImageInfo, vk_check};
 use ash::{Device, vk};
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
@@ -201,6 +201,16 @@ impl ResourceManager {
 
     pub fn get_layout(&self) -> vk::PipelineLayout {
         self.bindless.pipeline_layout
+    }
+
+    pub fn get_buffers(&self) -> RwLockReadGuard<Vec<BufferData>> {
+        self.buffers.read().unwrap()
+    }
+
+    /// Retrieves the read guard for the vector of images.
+    /// The caller must use a `ResourceHandle.id` to index the Vec.
+    pub fn get_images(&self) -> RwLockReadGuard<Vec<ImageData>> {
+        self.images.read().unwrap()
     }
 }
 

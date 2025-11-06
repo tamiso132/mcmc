@@ -1,0 +1,34 @@
+# This file sets environment variables for build scripts.
+
+[env]
+# We are now using relative paths, as requested.
+# 'relative = true' makes paths relative to the project root
+# (the directory containing the .cargo directory).
+
+# This tells `shader-slang-sys` where to find the headers
+SLANG_INCLUDE_DIR = { value = "thirdparty/slang/build/Release/include", relative = true }
+
+# This tells `shader-slang-sys` where to find the compiled libraries.
+# THIS IS THE FIX. We must point to the 'lib' subdirectory,
+# because that is where `libslang.so` is located.
+SLANG_LIB_DIR = { value = "thirdparty/slang/build/Release/lib", relative = true }
+
+# --- DO NOT SET SLANG_DIR ---
+# We are unsetting SLANG_DIR to prevent the 'sys' crate
+# from automatically adding /lib to the path.
+# SLANG_DIR = { value = "thirdparty/slang/build/Release", relative = true }
+
+# --- DIAGNOSTIC TEST ---
+# We still need this to get past the initial check in the build script.
+VULKAN_SDK = { value = "/home/tom/dummy-vulkan-path" }
+
+# --- NEW SECTION FOR RUNTIME ---
+# This tells rustc to pass a special flag to the linker.
+[build]
+# -C link-arg=... passes the following flag directly to `ld` (the linker).
+# -Wl,-rpath,... tells the linker to embed a "runtime search path"
+# into the final executable. This tells the OS where to find
+# the .so files when the program starts.
+rustflags = [
+  "-C", "link-arg=-Wl,-rpath,/home/tom/projects/mcmc/thirdparty/slang/build/Release/lib"
+]

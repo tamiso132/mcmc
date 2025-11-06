@@ -1,12 +1,10 @@
-use crate::{library::VkLibrary, window::{App, WinitAppRunner}};
+use crate::{
+    vulkan::library::VkLibrary,
+    vulkan::window::{App, WinitAppRunner},
+};
 
-mod bindless;
-mod library;
-mod queue;
-mod resource;
-mod util;
-mod window;
-mod slang_api;
+mod error;
+mod vulkan;
 
 struct MyVulkanApp;
 
