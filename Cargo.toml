@@ -20,6 +20,10 @@ bitflags = "2.5"
 # Now uses the "ash" feature
 vk-mem = "0.5.0"
 
+
+flecs_ecs = { git = "https://github.com/Indra-db/Flecs-Rust.git" }
+
+
 # Utilities
 log = "0.4"
 env_logger = "0.11"
@@ -27,8 +31,8 @@ thiserror = "1.0" # For error handling
 bitvec = "1.0"
 anyhow = "1.0" # For error handling, as used in the example
 shader-slang = "0.1.0"
+glam = "0.30.9"
 
 
 [build-dependencies]
 cmake = "0.1.54"
-
