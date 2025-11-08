@@ -4,7 +4,10 @@ use crate::{
 };
 
 mod error;
+// in src/main.rs
+mod plugin;
 mod vulkan;
+mod shader;
 
 struct MyVulkanApp;
 

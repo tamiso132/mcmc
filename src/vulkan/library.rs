@@ -5,11 +5,10 @@
 //! This is a custom "bootstrap" process.
 
 use super::bindless::BindlessDescriptors;
-use super::queue::{QueueCapability, QueueHandle, QueueInfo, QueueManager}; // Import QueueManager
 use super::resource::{ResourceHandle, ResourceManager};
 use super::util::{helper, vk_check};
-use super::window::{WinitWindow, WinitAppRunner, App}; // Import WinitWindow, WinitAppRunner, and App
-use ash::{ext, khr, vk}; 
+use super::window::{App, WinitAppRunner, WinitWindow}; // Import WinitWindow, WinitAppRunner, and App
+use ash::{ext, khr, vk};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -42,14 +41,13 @@ unsafe extern "system" fn vulkan_debug_callback(
 /// Corresponds to C++ VkLibrary.
 pub struct VkLibrary {
     // window is now public and owned
-    pub window: WinitWindow, 
+    pub window: WinitWindow,
     pub entry: ash::Entry,
     pub instance: ash::Instance,
     pub device: Arc<ash::Device>, // Arc for sharing with ResourceManager
     pub physical_device: vk::PhysicalDevice,
     pub queue: vk::Queue,
     pub queue_family: u32,
-    pub queue_manager: QueueManager, // <-- ADDED: Instance of QueueManager
     pub allocator: Arc<vma::Allocator>, // Arc for sharing
     pub resource_manager: Arc<ResourceManager>,
     // Surface members
@@ -73,8 +71,7 @@ impl VkLibrary {
         let initial_height = window.height();
 
         // --- 2. Create Instance ---
-        let (instance, debug_utils, debug_messenger) =
-            Self::create_instance(&entry, &window);
+        let (instance, debug_utils, debug_messenger) = Self::create_instance(&entry, &window);
 
         // --- 3. Create Surface ---
         // Uses the new surface creation function on WinitWindow
@@ -88,10 +85,6 @@ impl VkLibrary {
         // --- 5. Create Logical Device & Queue ---
         let (device, queue) = Self::create_logical_device(&instance, physical_device, queue_family);
         let device = Arc::new(device);
-
-        // --- 5b. Create QueueManager and register the queue ---
-        let queue_manager = QueueManager::new();
-        queue_manager.register_queue(queue, queue_family, QueueCapability::Graphics);
 
         // --- 6. Create VMA Allocator ---
         let allocator = {
@@ -117,12 +110,12 @@ impl VkLibrary {
 
         // --- 9. Register Swapchain Images ---
         let swapchain_images = Self::register_swapchain_images(
-            &device, 
-            &swapchain_loader, 
-            swapchain, 
-            swapchain_format, 
-            swapchain_extent, 
-            &resource_manager
+            &device,
+            &swapchain_loader,
+            swapchain,
+            swapchain_format,
+            swapchain_extent,
+            &resource_manager,
         );
 
         log::info!("Vulkan initialized successfully (manual ash setup)!");
@@ -135,7 +128,6 @@ impl VkLibrary {
             physical_device,
             queue,
             queue_family,
-            queue_manager,
             allocator,
             resource_manager,
             surface_loader,
@@ -194,7 +186,7 @@ impl VkLibrary {
         }
         handles
     }
-    
+
     // --- The rest of the helper functions remain in library.rs ---
 
     /// Helper 2: Create Instance
@@ -203,7 +195,7 @@ impl VkLibrary {
         window: &WinitWindow, // Now accepts WinitWindow
     ) -> (
         ash::Instance,
-        Option<ext::debug_utils::Instance>, 
+        Option<ext::debug_utils::Instance>,
         Option<vk::DebugUtilsMessengerEXT>,
     ) {
         let app_name = str_to_raw("Vulkan App");
@@ -220,16 +212,16 @@ impl VkLibrary {
         };
 
         // Get required extensions from winit
-        let mut required_extensions =
-            window.get_required_instance_extensions() // Use WinitWindow method
-                .expect("Failed to get required instance extensions")
-                .into_iter()
-                .map(|s| s.as_ptr())
-                .collect::<Vec<*const c_char>>();
+        let mut required_extensions = window
+            .get_required_instance_extensions() // Use WinitWindow method
+            .expect("Failed to get required instance extensions")
+            .into_iter()
+            .map(|s| s.as_ptr())
+            .collect::<Vec<*const c_char>>();
 
         let validation_layers = [str_to_raw("VK_LAYER_KHRONOS_validation")];
         let mut enable_validation = true;
-        
+
         // Add debug extensions if validation is on
         if enable_validation {
             required_extensions.push(ext::debug_utils::NAME.as_ptr());
@@ -297,7 +289,7 @@ impl VkLibrary {
     /// Helper 4: Select Physical Device
     fn select_physical_device(
         instance: &ash::Instance,
-        surface_loader: &khr::surface::Instance, 
+        surface_loader: &khr::surface::Instance,
         surface: vk::SurfaceKHR,
     ) -> (vk::PhysicalDevice, u32) {
         let physical_devices = vk_check!(unsafe { instance.enumerate_physical_devices() });
@@ -389,9 +381,9 @@ impl VkLibrary {
         instance: &ash::Instance,
         device: &ash::Device,
         physical_device: vk::PhysicalDevice,
-        surface_loader: &khr::surface::Instance, 
+        surface_loader: &khr::surface::Instance,
         surface: vk::SurfaceKHR,
-        swapchain_loader: &khr::swapchain::Device, 
+        swapchain_loader: &khr::swapchain::Device,
         width: u32,
         height: u32,
     ) -> (vk::SwapchainKHR, vk::Format, vk::Extent2D) {

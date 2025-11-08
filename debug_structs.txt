@@ -1,0 +1,121 @@
+--- PARSER DEBUG OUTPUT ---
+
+--- PARSING FILE: "shaders/shared/rayshared.slang" ---
+[
+    StructDef {
+        name: "RayCam",
+        attributes: [
+            "SHADER_ALIGN_16",
+        ],
+        fields: [
+            FieldDef {
+                name: "scaled_img_size",
+                cpp_type: "float4",
+            },
+            FieldDef {
+                name: "pos",
+                cpp_type: "float4",
+            },
+            FieldDef {
+                name: "w",
+                cpp_type: "float4",
+            },
+            FieldDef {
+                name: "v",
+                cpp_type: "float4",
+            },
+            FieldDef {
+                name: "u",
+                cpp_type: "float4",
+            },
+            FieldDef {
+                name: "d_delta_u",
+                cpp_type: "float4",
+            },
+            FieldDef {
+                name: "d_delta_v",
+                cpp_type: "float4",
+            },
+        ],
+    },
+    StructDef {
+        name: "NodeKey",
+        attributes: [],
+        fields: [
+            FieldDef {
+                name: "min_corner",
+                cpp_type: "float3",
+            },
+            FieldDef {
+                name: "level",
+                cpp_type: "uint",
+            },
+        ],
+    },
+    StructDef {
+        name: "HashEntry",
+        attributes: [
+            "SHADER_ALIGN_16",
+        ],
+        fields: [
+            FieldDef {
+                name: "key",
+                cpp_type: "NodeKey",
+            },
+            FieldDef {
+                name: "value",
+                cpp_type: "uint",
+            },
+        ],
+    },
+    StructDef {
+        name: "SamplingResult",
+        attributes: [
+            "SHADER_ALIGN_16",
+        ],
+        fields: [
+            FieldDef {
+                name: "sum_normal_x",
+                cpp_type: "float",
+            },
+            FieldDef {
+                name: "sum_normal_y",
+                cpp_type: "float",
+            },
+            FieldDef {
+                name: "sum_normal_z",
+                cpp_type: "float",
+            },
+            FieldDef {
+                name: "normal_hit_count",
+                cpp_type: "float",
+            },
+            FieldDef {
+                name: "ambient_hit_count",
+                cpp_type: "float",
+            },
+            FieldDef {
+                name: "normal_non_hit_count",
+                cpp_type: "float",
+            },
+            FieldDef {
+                name: "invalid_hit_count",
+                cpp_type: "float",
+            },
+        ],
+    },
+    StructDef {
+        name: "RayPush",
+        attributes: [
+            "SHADER_ALIGN_16",
+        ],
+        fields: [
+            FieldDef {
+                name: "padding",
+                cpp_type: "int2",
+            },
+        ],
+    },
+]
+
+out_dir: /home/tom/projects/mcmc/generated/

@@ -1,0 +1,21 @@
+[general]
+# A list of `use` statements to add to the top of the generated file.
+# Semicolons are added automatically if missing.
+use_statements = ["use glam::*"]
+
+[type_mappings]
+"uint" = "u32"
+"int" = "i32"
+"int2" = "IVec2"
+"int3" = "IVec3"
+"int4" = "IVec4"
+"float" = "f32"
+"float2" = "Vec2"
+"float3" = "Vec3"
+"float4" = "Vec4"
+
+
+[struct_attribute_mappings]
+SHADER_ALIGN_16 = { align = 16 }
+# You could add more, e.g.:
+# "MY_OTHER_MACRO" = "#[my_custom_attribute]"

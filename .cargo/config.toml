@@ -13,6 +13,8 @@ SLANG_INCLUDE_DIR = { value = "thirdparty/slang/build/Release/include", relative
 # because that is where `libslang.so` is located.
 SLANG_LIB_DIR = { value = "thirdparty/slang/build/Release/lib", relative = true }
 
+SHADER_OUT_DIR = { value = "generated/", relative = true }
+
 # --- DO NOT SET SLANG_DIR ---
 # We are unsetting SLANG_DIR to prevent the 'sys' crate
 # from automatically adding /lib to the path.
@@ -30,5 +32,6 @@ VULKAN_SDK = { value = "/home/tom/dummy-vulkan-path" }
 # into the final executable. This tells the OS where to find
 # the .so files when the program starts.
 rustflags = [
-  "-C", "link-arg=-Wl,-rpath,/home/tom/projects/mcmc/thirdparty/slang/build/Release/lib"
+  "-C",
+  "link-arg=-Wl,-rpath,/home/tom/projects/mcmc/thirdparty/slang/build/Release/lib",
 ]

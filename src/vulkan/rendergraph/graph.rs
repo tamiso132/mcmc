@@ -6,17 +6,19 @@
 //! FIX: Removed lifetimes 'a from RenderGraph, Subgraph, and TaskInfo
 //! to resolve lifetime variance issues in RenderGraphConfigurator.
 //! Barriers are now explicitly 'static.
+//!
+//! MOD: Simplified to use a single graphics queue, removing all
+//! multi-queue management logic (QueueManager, etc.).
 
 use super::configurator::RenderGraphConfigurator;
 use super::task::{BufferResourceInfo, ImageResourceInfo, Task};
 use super::types::{Access, PassEncoder, TaskType, get_access_flags};
 use crate::error::{AppError, AppResult};
 use crate::vulkan;
-use crate::vulkan::queue::QueueManager;
 use ash::{Device, vk};
+use bitvec::prelude::*;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLockReadGuard};
-use vulkan::queue::CommandBufferManager;
+use std::sync::{Arc, Mutex, RwLockReadGuard};
 use vulkan::resource::{BufferData, ImageData, ResourceHandle, ResourceManager};
 use vulkan::util::vk_check;
 
@@ -31,9 +33,8 @@ struct TaskNode {
 
 /// Corresponds to `Subgraph` in rendergraph.hpp
 struct Subgraph {
-    tasks: Vec<TaskInfo>, // <-- Removed 'a
+    tasks: Vec<TaskInfo>,
     dependents: Vec<u32>,
-    // queue: InternalQueueHandle, // TODO
     submit_order: u32,
 }
 
@@ -154,30 +155,32 @@ impl ResHandles {
 
 /// Corresponds to `vklib::RenderGraph`
 pub struct RenderGraph {
-    // <-- Removed 'a
     device: Arc<Device>,
     handles: ResHandles,
     tasks: Vec<Task>,
-    subgraphs: Vec<Subgraph>, // <-- Removed 'a
-    queue_mng: QueueManager,
+    subgraphs: Vec<Subgraph>,
     cmd_manager: Arc<CommandBufferManager>,
-    // TODO: Add queue info
+    graphics_queue: vk::Queue,
 }
 
 impl RenderGraph {
-    // <-- Removed 'a
     pub fn new(
         device: Arc<Device>,
         res_manager: Arc<ResourceManager>,
-        cmd_manager: Arc<CommandBufferManager>,
+        graphics_queue: vk::Queue,
+        graphics_family_index: u32,
     ) -> Self {
+        let cmd_manager = Arc::new(CommandBufferManager::new(
+            device.clone(),
+            graphics_family_index,
+        ));
         Self {
             device,
             handles: ResHandles::new(res_manager),
             tasks: Vec::new(),
             subgraphs: Vec::new(),
             cmd_manager,
-            queue_mng: QueueManager::new(),
+            graphics_queue,
         }
     }
 
@@ -186,7 +189,7 @@ impl RenderGraph {
     where
         REnum: Into<u32> + Copy,
     {
-        RenderGraphConfigurator::new(self) // <-- Removed 'a
+        RenderGraphConfigurator::new(self)
     }
 
     /// Corresponds to `add_task`
@@ -471,22 +474,14 @@ impl RenderGraph {
 
     /// Corresponds to `execute()`
     pub fn execute(&mut self) -> AppResult<()> {
-        // TODO: This is a simplified execution that just runs all
-        // subgraphs in order. A real implementation would use the
-        // subgraph dependencies to build a submission order
-        // and handle semaphores between queues.
-
-        // For now, we assume a single (graphics) queue.
-        // We'll use the CommandBufferManager from `queue.rs`.
-        // We assume queue_handle 0 is our main graphics queue.
-        const MAIN_QUEUE: u32 = 0;
-
         // Get resource data guards for the *entire* execution frame
         let buffers_guard = self.handles.res_manager.get_buffers();
         let images_guard = self.handles.res_manager.get_images();
 
         for subgraph in &self.subgraphs {
-            let cmd = self.cmd_manager.request(&self.queue_mng, MAIN_QUEUE);
+            // Request a command buffer from our simplified manager
+            let cmd = self.cmd_manager.request();
+
             let begin_info = vk::CommandBufferBeginInfo::default()
                 .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
             vk_check!(unsafe { self.device.begin_command_buffer(cmd, &begin_info) });
@@ -521,21 +516,114 @@ impl RenderGraph {
 
             vk_check!(unsafe { self.device.end_command_buffer(cmd) });
 
-            // TODO: Submit to queue
-            // let submit_info = vk::SubmitInfo::default().command_buffers(&[cmd]);
-            // vk_check!(unsafe { self.device.queue_submit(self.queue, &[submit_info], vk::Fence::null()) });
+            let cmds = [cmd];
+
+            // Submit to our single graphics queue
+            let submit_info = vk::SubmitInfo::default().command_buffers(&cmds);
+            vk_check!(unsafe {
+                self.device
+                    .queue_submit(self.graphics_queue, &[submit_info], vk::Fence::null())
+            });
         }
 
-        // TODO: Wait for queue idle
-        // vk_check!(unsafe { self.device.queue_wait_idle(self.queue) });
+        // Wait for the queue to be idle
+        vk_check!(unsafe { self.device.queue_wait_idle(self.graphics_queue) });
 
-        // TODO: Reset command pools
-        // self.cmd_manager.reset_all();
+        // Reset the command pools
+        self.cmd_manager.reset_all();
 
         // Clear tasks for the next frame
         self.tasks.clear();
         self.subgraphs.clear();
 
         Ok(())
+    }
+}
+
+// --- Simplified CommandBufferManager ---
+
+/// Manages command buffers for a *single* queue.
+pub struct CommandBufferManager {
+    device: Arc<Device>,
+    pool: Mutex<QueuePool>,
+}
+
+struct CommandBufferEntry {
+    pool: vk::CommandPool,
+    buffer: vk::CommandBuffer,
+}
+
+/// A pool of command buffers for a single queue family.
+struct QueuePool {
+    buffers: Vec<CommandBufferEntry>,
+    in_use_mask: BitVec<u64>,
+    queue_family_index: u32,
+}
+
+impl CommandBufferManager {
+    pub fn new(device: Arc<Device>, graphics_family_index: u32) -> Self {
+        Self {
+            device,
+            pool: Mutex::new(QueuePool {
+                buffers: Vec::new(),
+                in_use_mask: BitVec::new(),
+                queue_family_index: graphics_family_index,
+            }),
+        }
+    }
+
+    /// Requests a new command buffer from the pool.
+    pub fn request(&self) -> vk::CommandBuffer {
+        let mut pool = self.pool.lock().unwrap();
+
+        // Find the first available buffer
+        if let Some(index) = pool.in_use_mask.first_zero() {
+            pool.in_use_mask.set(index, true);
+            pool.buffers[index].buffer
+        } else {
+            // No available buffer, create a new one
+            let pool_info = vk::CommandPoolCreateInfo::default()
+                .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+                .queue_family_index(pool.queue_family_index);
+
+            let vk_pool = vk_check!(unsafe { self.device.create_command_pool(&pool_info, None) });
+
+            let alloc_info = vk::CommandBufferAllocateInfo::default()
+                .command_pool(vk_pool)
+                .level(vk::CommandBufferLevel::PRIMARY)
+                .command_buffer_count(1);
+            let buffer = vk_check!(unsafe { self.device.allocate_command_buffers(&alloc_info) })[0];
+
+            let index = pool.buffers.len();
+            pool.buffers.push(CommandBufferEntry {
+                pool: vk_pool,
+                buffer,
+            });
+            pool.in_use_mask.resize(index + 1, false);
+            pool.in_use_mask.set(index, true);
+            buffer
+        }
+    }
+
+    /// Resets all command pools.
+    pub fn reset_all(&self) {
+        let pool = self.pool.lock().unwrap();
+        for entry in &pool.buffers {
+            vk_check!(unsafe {
+                self.device
+                    .reset_command_pool(entry.pool, vk::CommandPoolResetFlags::empty())
+            });
+        }
+    }
+}
+
+impl Drop for CommandBufferManager {
+    fn drop(&mut self) {
+        let pool = self.pool.lock().unwrap();
+        for entry in &pool.buffers {
+            unsafe {
+                self.device.destroy_command_pool(entry.pool, None);
+            }
+        }
     }
 }

@@ -32,7 +32,13 @@ bitvec = "1.0"
 anyhow = "1.0" # For error handling, as used in the example
 shader-slang = "0.1.0"
 glam = "0.30.9"
+dot_vox = "5.1.1"
 
 
 [build-dependencies]
+tree-sitter-c = "0.24.1"
+tree-sitter = "0.25.10"
+bindgen = "0.72.1"
 cmake = "0.1.54"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8" # The TOML parser
