@@ -32,7 +32,7 @@ impl SlangCompiler {
             .profile(global_session.find_profile("glsl_450"));
 
         let session_options = slang::CompilerOptions::default()
-            .optimization(slang::OptimizationLevel::High)
+            .optimization(slang::OptimizationLevel::None)
             .matrix_layout_row(true);
 
         let targets = [target_desc];
@@ -64,8 +64,8 @@ impl SlangCompiler {
         entry_point_name: &str,
     ) -> slang::Result<slang::Module> {
         // Load module from file path
-
-        let module = self.session.load_module(file_path)?;
+        println!("path: {}", file_path);
+        let module = self.session.load_module(file_path).unwrap();
 
         // Find entry point
         let entry_point = module.find_entry_point_by_name(entry_point_name).unwrap();

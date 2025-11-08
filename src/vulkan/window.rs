@@ -20,7 +20,7 @@ use super::library::VkLibrary; // Import VkLibrary from the library module
 // This is the 'user stuff' that gets injected.
 pub trait App {
     /// Called once at the start of the main loop.
-    fn initialize(&mut self, library: &mut VkLibrary);
+    fn new(library: &mut VkLibrary) -> Self;
     /// Called for every frame.
     fn update(&mut self, library: &mut VkLibrary, dt: f32);
     /// Called on a window resize event.
@@ -108,11 +108,10 @@ impl WinitAppRunner {
     }
 
     /// Creates the Vulkan library and runs the application's main loop.
-    pub fn run_app<A: App + 'static>(
+    pub fn run_app<MyApp: App + 'static>(
         mut self,
         width: u32,
         height: u32,
-        app: A,
     ) -> Result<(), Box<dyn std::error::Error>> {
         // --- 1. Create the Window and Vulkan Library ---
         // The WinitWindow needs the EventLoop reference now.
@@ -120,8 +119,7 @@ impl WinitAppRunner {
         let mut library = VkLibrary::new(window);
 
         // --- 2. Initialize the User Application ---
-        let mut user_app = app;
-        user_app.initialize(&mut library);
+        let mut user_app = MyApp::new(&mut library);
 
         // --- 3. Run the Event Loop ---
         log::info!("Starting Winit Event Loop...");

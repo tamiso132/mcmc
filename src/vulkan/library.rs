@@ -204,9 +204,9 @@ impl VkLibrary {
         let app_info = vk::ApplicationInfo {
             s_type: vk::StructureType::APPLICATION_INFO,
             p_application_name: app_name.as_ptr(),
-            application_version: vk::make_api_version(0, 1, 0, 0),
+            application_version: vk::make_api_version(0, 1, 3, 0),
             p_engine_name: engine_name.as_ptr(),
-            engine_version: vk::make_api_version(0, 1, 0, 0),
+            engine_version: vk::make_api_version(0, 1, 3, 0),
             api_version: vk::API_VERSION_1_3,
             ..Default::default()
         };
@@ -219,7 +219,7 @@ impl VkLibrary {
             .map(|s| s.as_ptr())
             .collect::<Vec<*const c_char>>();
 
-        let validation_layers = [str_to_raw("VK_LAYER_KHRONOS_validation")];
+        let validation_layers = [c"VK_LAYER_KHRONOS_validation"];
         let mut enable_validation = true;
 
         // Add debug extensions if validation is on
@@ -232,7 +232,7 @@ impl VkLibrary {
         for layer in &validation_layers {
             let found = layer_props.iter().any(|props| {
                 let name = unsafe { CStr::from_ptr(props.layer_name.as_ptr()) };
-                name == layer.as_c_str()
+                name == layer
             });
             if !found {
                 log::warn!("Validation layer not found: {:?}", layer);
@@ -258,7 +258,7 @@ impl VkLibrary {
         };
 
         // Enable debug messenger for instance creation
-        let mut debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
             s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
             message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
                 | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,

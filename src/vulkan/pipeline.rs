@@ -9,9 +9,9 @@
 //!   Pipeline `CreateInfo` structs are now built on-the-fly from
 //!   owned data, allowing `PipelineManager` to be 'static.
 
-use crate::error::AppResult; // <-- ADDED
 use super::slang_api::SlangCompiler;
 use super::util::vk_check;
+use crate::error::AppResult; // <-- ADDED
 use ash::{Device, vk};
 use shader_slang as slang; // Keep the slang alias
 use std::collections::HashMap;
@@ -447,11 +447,8 @@ impl PipelineManager {
         }
 
         let pipeline = vk_check!(unsafe {
-            self.device.create_graphics_pipelines(
-                vk::PipelineCache::null(),
-                std::slice::from_ref(&info),
-                None,
-            )
+            self.device
+                .create_graphics_pipelines(vk::PipelineCache::null(), &[info], None)
         })[0];
 
         pipeline

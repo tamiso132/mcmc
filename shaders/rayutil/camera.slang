@@ -1,6 +1,6 @@
 #pragma once
 
-#include "shared/rayshared.inl"
+#include "shared/rayshared.slang"
 #include "shared.slang"
 
 
