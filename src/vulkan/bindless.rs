@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy)]
 pub enum BindlessType {
-    SampledImage,
+    CombinedImageSampler,
     StorageImage,
     StorageBuffer,
     UniformBuffer,
@@ -41,7 +41,7 @@ const SHADER_STAGES: vk::ShaderStageFlags = vk::ShaderStageFlags::from_raw(
 
 const METAS: [DescriptorMeta; 4] = [
     DescriptorMeta {
-        descriptor_type: vk::DescriptorType::SAMPLED_IMAGE,
+        descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         stage_flags: SHADER_STAGES,
     },
     DescriptorMeta {

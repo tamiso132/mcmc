@@ -5,7 +5,10 @@ use std::ffi::{CStr, CString};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ash::vk;
 use shader_slang::{self as slang, CapabilityID, CompilerOptions, ComponentType, Downcast};
+
+use crate::vulkan::pipeline::ShaderType;
 
 /// Represents the result of a shader compilation.
 
@@ -62,9 +65,9 @@ impl SlangCompiler {
         &self,
         file_path: &str,
         entry_point_name: &str,
-    ) -> slang::Result<slang::Module> {
+        shader_ty: ShaderType,
+    ) -> slang::Result<(slang::Module, String)> {
         // Load module from file path
-        println!("path: {}", file_path);
         let module = self.session.load_module(file_path).unwrap();
 
         // Find entry point
@@ -80,19 +83,31 @@ impl SlangCompiler {
 
         // Get SPIR-V code
         let shader_bytecode = linked_program.entry_point_code(0, 0)?;
-        println!("here?");
 
         // Write SPIR-V to file
-
+        let path = Path::new(file_path);
+        let file_name = path.file_name().unwrap();
+        
         let output_path: String = {
             if self.out_dir.is_empty() {
                 // If out_dir is empty, just use the file_path
-                format!("{}.spv", file_path)
+                format!(
+                    "{}_{}.spv",
+                    file_name.to_str().unwrap(),
+                    shader_ty.get_extension()
+                )
             } else {
                 // If out_dir is NOT empty, join them with a slash
-                format!("{}/{}.spv", self.out_dir, file_path)
+                format!(
+                    "{}/{}_{}.spv",
+                    self.out_dir,
+                    file_name.to_str().unwrap(),
+                    shader_ty.get_extension()
+                )
             }
         };
+
+        println!("outputfile: {}", output_path);
 
         fs::create_dir_all(self.out_dir.clone())
             .map_err(|e| format!("Failed to create output directory: {}", e))
@@ -102,7 +117,7 @@ impl SlangCompiler {
             .map_err(|e| format!("Failed to write SPIR-V to file: {}", e))
             .unwrap();
 
-        Ok(module)
+        Ok((module, output_path))
     }
 }
 
@@ -116,7 +131,8 @@ mod tests {
         // Create a dummy shader file for testing
 
         let compiler = SlangCompiler::new(vec![], "");
-        let mut result = compiler.compile_shader(&"simple.slang", "computeMain");
+        let mut result =
+            compiler.compile_shader(&"simple.slang", "computeMain", ShaderType::Compute);
 
         assert!(result.is_ok());
         let compile_result = result.unwrap();

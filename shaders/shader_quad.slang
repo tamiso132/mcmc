@@ -23,7 +23,7 @@ struct VertexOutput
 };
 
 [vk_binding(0, 0)]
-Sampler2D<float4> tex_0;
+Sampler2D tex_0;
 
 [shader("vertex")]
 VertexOutput vs_main(uint vertex_index: SV_VulkanVertexID)

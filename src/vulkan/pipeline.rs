@@ -11,7 +11,8 @@
 
 use super::slang_api::SlangCompiler;
 use super::util::vk_check;
-use crate::error::AppResult; // <-- ADDED
+use crate::error::AppResult; use ash::vk::SampleCountFlags;
+// <-- ADDED
 use ash::{Device, vk};
 use shader_slang as slang; // Keep the slang alias
 use std::collections::HashMap;
@@ -40,6 +41,15 @@ impl ShaderType {
             ShaderType::None => vk::ShaderStageFlags::empty(),
         }
     }
+
+    pub fn get_extension(self) -> &'static str {
+        match self {
+            ShaderType::None => todo!(),
+            ShaderType::Compute => "comp",
+            ShaderType::Vertex => "vert",
+            ShaderType::Fragment => "frag",
+        }
+    }
 }
 
 /// Corresponds to `ShaderFileInfo`
@@ -59,8 +69,8 @@ pub struct GraphicsPipelineConfig {
     pub rasterization_cull_mode: vk::CullModeFlags,
     pub depth_stencil_enable: bool,
     pub depth_stencil_compare_op: vk::CompareOp,
-    pub dynamic_states: Vec<vk::DynamicState>,
-    // TODO: Add color blend attachment state
+    pub color_attachments: Vec<vk::Format>,
+    pub depth_format: vk::Format,
 }
 
 /// Corresponds to `ComputePipelineConfig`
@@ -99,6 +109,16 @@ impl GraphicsPipelineBuilder {
         self
     }
 
+    pub fn add_color_attachments(mut self, attach_formats: &[vk::Format]) -> Self {
+        self.config.color_attachments = attach_formats.to_vec();
+        self
+    }
+
+    pub fn add_depth_format(mut self, depth_format: vk::Format) -> Self {
+        self.config.depth_format = depth_format;
+        self
+    }
+
     pub fn set_rasterization(mut self, mode: vk::PolygonMode, cull: vk::CullModeFlags) -> Self {
         self.config.rasterization_polygon_mode = mode;
         self.config.rasterization_cull_mode = cull;
@@ -107,11 +127,6 @@ impl GraphicsPipelineBuilder {
 
     pub fn set_topology(mut self, topology: vk::PrimitiveTopology) -> Self {
         self.config.input_assembly_topology = topology;
-        self
-    }
-
-    pub fn add_dynamic_state(mut self, state: vk::DynamicState) -> Self {
-        self.config.dynamic_states.push(state);
         self
     }
 
@@ -263,12 +278,12 @@ impl PipelineManager {
                 let mut slang_modules = Vec::new();
 
                 for file in &config.shader_files {
-                    let slang_module = self
-                        .slang_compiler
-                        .compile_shader(&file.path, &file.entry)?; // <-- Use ?
-                    slang_modules.push(slang_module);
+                    let (slang_module, shader_path) =
+                        self.slang_compiler
+                            .compile_shader(&file.path, &file.entry, file.ty)?; // <-- Use ?
 
-                    let shader_module = self.load_shader_from_spv(&file.path)?; // <-- Use ?
+                    let shader_module = self.load_shader_from_spv(&shader_path)?; // <-- Use ?
+                    slang_modules.push(slang_module);
 
                     shader_infos.push(PipelineShaderInfo {
                         module: shader_module,
@@ -299,12 +314,11 @@ impl PipelineManager {
             }
             PipelineBuilderResult::Compute(config) => {
                 let file = &config.shader_info;
+                let (slang_module, shader_path) =
+                    self.slang_compiler
+                        .compile_shader(&file.path, &file.entry, file.ty)?; // <-- Use ?
 
-                let slang_module = self
-                    .slang_compiler
-                    .compile_shader(&file.path, &file.entry)?; // <-- Use ?
-
-                let shader_module = self.load_shader_from_spv(&file.path)?; // <-- Use ?
+                let shader_module = self.load_shader_from_spv(&shader_path)?; // <-- Use ?
 
                 let shader_info = PipelineShaderInfo {
                     module: shader_module,
@@ -351,10 +365,15 @@ impl PipelineManager {
     /// Corresponds to C++ `load_shader`
     fn load_shader_from_spv(&self, shader_name: &str) -> AppResult<vk::ShaderModule> {
         // <-- Use AppResult
+
         let output_path = if self.output_shader_dir.is_empty() {
             format!("{}.spv", shader_name)
         } else {
-            format!("{}/{}.spv", self.output_shader_dir, shader_name)
+            if shader_name.contains(&self.output_shader_dir) {
+                shader_name.to_owned()
+            } else {
+                format!("{}/{}.spv", self.output_shader_dir, shader_name)
+            }
         };
 
         let path = Path::new(&output_path);
@@ -381,13 +400,14 @@ impl PipelineManager {
         config: &GraphicsPipelineConfig,
         shaders: &[PipelineShaderInfo],
     ) -> vk::Pipeline {
+        let entry = c"main";
         let shader_stages: Vec<vk::PipelineShaderStageCreateInfo> = shaders
             .iter()
             .map(|s| {
                 vk::PipelineShaderStageCreateInfo::default()
                     .stage(s.stage)
                     .module(s.module)
-                    .name(&s.entry)
+                    .name(&entry)
             })
             .collect();
 
@@ -413,12 +433,19 @@ impl PipelineManager {
             .depth_write_enable(config.depth_stencil_enable)
             .depth_compare_op(config.depth_stencil_compare_op);
 
+        let dynamic = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
         let dynamic_state_info =
-            vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&config.dynamic_states);
+            vk::PipelineDynamicStateCreateInfo::default().dynamic_states(&dynamic);
 
         // Viewport and multisample are empty if dynamic state is used
-        let viewport_empty = vk::PipelineViewportStateCreateInfo::default();
-        let multisample_empty = vk::PipelineMultisampleStateCreateInfo::default();
+        let viewport_empty = vk::PipelineViewportStateCreateInfo::default()
+            .viewport_count(1)
+            .scissor_count(1);
+        let multisample_empty = vk::PipelineMultisampleStateCreateInfo::default().rasterization_samples(SampleCountFlags::TYPE_1);
+
+        let mut rendering_info = vk::PipelineRenderingCreateInfoKHR::default()
+            .color_attachment_formats(&config.color_attachments)
+            .depth_attachment_format(config.depth_format);
 
         let mut info = vk::GraphicsPipelineCreateInfo::default()
             .stages(&shader_stages)
@@ -430,7 +457,8 @@ impl PipelineManager {
             .viewport_state(&viewport_empty)
             .multisample_state(&multisample_empty)
             .dynamic_state(&dynamic_state_info)
-            .layout(self.shared_layout);
+            .layout(self.shared_layout)
+            .push_next(&mut rendering_info);
 
         // This is a minimal setup for dynamic viewport/scissor
         let viewport_info = vk::PipelineViewportStateCreateInfo::default()
@@ -439,12 +467,6 @@ impl PipelineManager {
 
         let multisample_info = vk::PipelineMultisampleStateCreateInfo::default()
             .rasterization_samples(vk::SampleCountFlags::TYPE_1);
-
-        // If not using dynamic states, provide them
-        if config.dynamic_states.is_empty() {
-            info.p_viewport_state = &viewport_info;
-            info.p_multisample_state = &multisample_info;
-        }
 
         let pipeline = vk_check!(unsafe {
             self.device
@@ -460,10 +482,11 @@ impl PipelineManager {
         _config: &ComputePipelineConfig,
         shader: &PipelineShaderInfo,
     ) -> vk::Pipeline {
+        let entry_name = c"main";
         let stage = vk::PipelineShaderStageCreateInfo::default()
             .stage(shader.stage)
             .module(shader.module)
-            .name(&shader.entry);
+            .name(&entry_name);
 
         let info = vk::ComputePipelineCreateInfo::default()
             .layout(self.shared_layout)

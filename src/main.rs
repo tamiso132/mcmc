@@ -1,4 +1,4 @@
-use ash::vk::{Pipeline, PrimitiveTopology};
+use ash::vk::{self, Format, Pipeline, PrimitiveTopology};
 
 use crate::vulkan::{
     library::VkLibrary,
@@ -33,6 +33,8 @@ impl App for MyVulkanApp {
         let quad_pipeline = GraphicsPipelineBuilder::new()
             .add_shader("shader_quad.slang", "vs_main", ShaderType::Vertex)
             .add_shader("shader_quad.slang", "fs_main", ShaderType::Fragment)
+            .add_color_attachments(&[vk::Format::R8G8B8A8_UNORM])
+            .add_depth_format(Format::D32_SFLOAT)
             .set_topology(PrimitiveTopology::TRIANGLE_FAN)
             .build();
 
